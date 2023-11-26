@@ -9,7 +9,6 @@ const itemSchemaValidation = Joi.object({
 
   const createListSchemaValidation = Joi.object({
     shoppingListName: Joi.string().required(),
-    owner: Joi.string().required(),
     sharedTo: Joi.array().items(Joi.string()),
     state: Joi.string().valid('public', 'private').required(),
     items: Joi.array().items(itemSchemaValidation).required() // Joi schema used here
@@ -17,7 +16,6 @@ const itemSchemaValidation = Joi.object({
 
   const updateListSchemaValidation = Joi.object({
     shoppingListName: Joi.string().optional(),
-    owner: Joi.string().optional(),
     sharedTo: Joi.array().items(Joi.string()).optional(),
     state: Joi.string().valid('public', 'private').optional(),
     items: Joi.array().items(itemSchemaValidation).optional() // itemSchemaValidation is already defined
