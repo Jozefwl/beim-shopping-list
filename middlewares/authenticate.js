@@ -1,19 +1,22 @@
+const jwt = require('jsonwebtoken');
+
 module.exports = function authenticate(req, res, next) {
     const authHeader = req.headers['authorization'];
-    
-    // Check if the Authorization header is present and starts with 'Bearer '
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).send('Unauthorized: No token provided');
-    } else if (authHeader && authHeader.startsWith('Bearer ')) {
-        // Extract the token from the header
-        const token = authHeader.substring(7); // 'Bearer ' is 7 characters
 
-        if (token) {
-            req.user = { id: token }; // Set the user ID to the token value
-            next();
-        } else 
-        {
-            res.status(401).send('Unauthorized´: Unknown Error');
-        }
-    };
-}
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    const token = authHeader.substring(7); // Extract the token
+
+ try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = { 
+            id: decoded.userId, 
+            role: decoded.role // Ensure the token includes the user's role
+        };
+        next();
+    } catch (error) {
+        res.status(401).json({ message: 'Unauthorized: Invalid token', error: error.message });
+    }
+};

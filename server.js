@@ -1,8 +1,9 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const router = require('./routerBasic');
+const router = require('./router');
 const { mongoURI } = require('./config');
+require('dotenv').config();
 
 mongoose.connect(mongoURI)
   .then(() => console.log('MongoDB connected successfully'))
