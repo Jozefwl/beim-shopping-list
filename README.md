@@ -56,32 +56,32 @@ To set up this project locally, follow these steps:
 
 5. **API Endpoints:**
 
-    *GET /*
+    GET /
         Welcome message and server status.
 
-**Authentication**
+### Authentication
 
-    POST /login
-       - Authenticates a user and returns a JWT token.
-    POST /register
-       - Registers a new user.
+- **POST /login**
+  - Authenticates a user and returns a JWT token.
+- **POST /register**
+  - Registers a new user.
 
-**Shopping Lists**
+### Shopping Lists
 
-    GET /getAllLists
-       - Retrieves all shopping lists (Admin only).
-    GET /getList/:listId
-       - Retrieves a specific shopping list by its ID. Accessible to the owner, shared users, and admins.
-    POST /createList
-       - Creates a new shopping list. Accessible to authenticated users.
-    PUT /updateList/:listId
-       - Updates a specific shopping list by its ID. Accessible to the owner and shared users.
-    DELETE /deleteList/:listId
-       - Deletes a specific shopping list by its ID. Accessible to the owner.
-    GET /getAllPublicLists
-       - Retrieves all public shopping lists.
+- **GET /getAllLists**
+  - Retrieves all shopping lists (Admin only).
+- **GET /getList/:listId**
+  - Retrieves a specific shopping list by its ID. Accessible to the owner, shared users, and admins.
+- **POST /createList**
+  - Creates a new shopping list. Accessible to authenticated users.
+- **PUT /updateList/:listId**
+  - Updates a specific shopping list by its ID. Accessible to the owner and shared users.
+- **DELETE /deleteList/:listId**
+  - Deletes a specific shopping list by its ID. Accessible to the owner.
+- **GET /getAllPublicLists**
+  - Retrieves all public shopping lists.
 
-**Permissions**
+### Permissions
 
-    GET /getSharePermissions/:listId
-       - Retrieves sharing permissions of a specific list.
+- **GET /getSharePermissions/:listId**
+  - Retrieves sharing permissions of a specific list.
