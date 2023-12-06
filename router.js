@@ -71,11 +71,11 @@ router.post('/login', async (req, res) => {
 
         // Generate a JWT token that includes the user's ID and role
         const token = jwt.sign(
-            { 
-                userId: user._id, 
+            {
+                userId: user._id,
                 role: user.role  // Include the user's role in the token
-            }, 
-            process.env.JWT_SECRET, 
+            },
+            process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
@@ -123,7 +123,7 @@ router.get('/getAllLists', authenticate, isAdmin, async (req, res) => {
 });
 
 // GET command to get a specific list
-router.get('/getList/:listId', authenticate, async (req, res) => {
+router.get('/getList/:listId', async (req, res) => {
     const listId = req.params.listId;
 
     if (!validateObjectId(listId)) return handleInvalidId(res);
@@ -132,19 +132,44 @@ router.get('/getList/:listId', authenticate, async (req, res) => {
         const list = await ShoppingList.findById(listId);
         if (!list) return handleNotFound(res, null);
 
-        if (list.ownerId !== req.user.id && !list.sharedTo.includes(req.user.id) && req.user.role !== 'admin') {
-            return handleAccessDenied(res);
+        // Check if the list is not public
+        if (!list.isPublic) {
+            const authHeader = req.headers['authorization'];
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(401).json({ message: 'Unauthorized: No token provided' });
+            }
+
+            const token = authHeader.substring(7); // Extract the token
+            if (!token) {
+                return res.status(401).json({ message: 'Unauthorized: No token provided' });
+            }
+
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                req.user = {
+                    id: decoded.userId,
+                    role: decoded.role
+                };
+
+                // Check if the user is authorized to view the list
+                if (list.ownerId !== req.user.id && !list.sharedTo.includes(req.user.id) && req.user.role !== 'admin') {
+                    return handleAccessDenied(res);
+                }
+            } catch (error) {
+                return res.status(401).json({ message: 'Unauthorized: Invalid token', error: error.message });
+            }
         }
 
+        // Continue with the rest of the route logic
         res.json(list);
     } catch (error) {
         handleError(res, error);
     }
 });
 
-// POST command to create a new list
 
 
+//POST command to update a list
 router.put('/updateList/:listId', authenticate, validateList, async (req, res) => {
     const listId = req.params.listId;
 
@@ -172,7 +197,7 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
 
 
 // GET command to get share permissions of a list
-router.get('/getSharePermissions/:listId', async (req, res) => {
+router.get('/getSharePermissions/:listId', authenticate, async (req, res) => {
     const listId = req.params.listId;
 
     if (!validateObjectId(listId)) return handleInvalidId(res);
@@ -267,5 +292,19 @@ router.get('/getAllPublicLists', async (req, res) => {
         handleError(res, error);
     }
 });
+
+router.get('/getMyLists', authenticate, async (req, res) => {
+    try {
+        const userId = req.user.id; // Assuming authenticate middleware sets req.user
+
+        // Fetch lists where the logged-in user is the owner
+        const userLists = await ShoppingList.find({ ownerId: userId });
+
+        res.json(userLists);
+    } catch (error) {
+        handleError(res, error);
+    }
+});
+
 
 module.exports = router;
