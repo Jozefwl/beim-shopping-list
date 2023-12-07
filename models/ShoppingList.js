@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 const itemSchemaMongo = new mongoose.Schema({
     name: String,
-    category: String,
+     category: {
+        type: String,
+        enum: ['Groceries', 'Beverages', 'Supplies', 'Belongings', 'Other'],
+        default: 'Other'
+    },
     quantity: Number,
     checked: Boolean
 });

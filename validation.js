@@ -10,7 +10,7 @@ const itemSchemaValidation = Joi.object({
   const createListSchemaValidation = Joi.object({
     shoppingListName: Joi.string().required(),
     sharedTo: Joi.array().items(Joi.string()),
-    state: Joi.string().valid('public', 'private').required(),
+    isPublic: Joi.boolean().default(false),
     items: Joi.array().items(itemSchemaValidation).required() // Joi schema used here
   });
 

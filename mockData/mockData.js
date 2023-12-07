@@ -23,7 +23,7 @@ const mockShoppingLists = [
             },
             {
                 "name": "Tape",
-                "category": "Household",
+                "category": "Supplies",
                 "quantity": 1,
                 "checked": false
             }
@@ -39,7 +39,7 @@ const mockShoppingLists = [
         "items": [
             {
                 "name": "Hammer",
-                "category": "Household",
+                "category": "Supplies",
                 "quantity": 1,
                 "checked": false
             }
@@ -53,13 +53,13 @@ const mockShoppingLists = [
         "items": [
             {
                 "name": "Milk",
-                "category": "Dairy",
+                "category": "Groceries",
                 "quantity": 2,
                 "checked": false
             },
             {
                 "name": "Bread",
-                "category": "Bakery",
+                "category": "Groceries",
                 "quantity": 1,
                 "checked": false
             },
@@ -71,7 +71,7 @@ const mockShoppingLists = [
             },
             {
                 "name": "Cheese",
-                "category": "Dairy",
+                "category": "Groceries",
                 "quantity": 1,
                 "checked": false
             }
@@ -83,29 +83,29 @@ const mockShoppingLists = [
         "isPublic": true
     },
     {
-        "shoppingListName": "Party Supplies",
+        "shoppingListName": "Supplies Supplies",
         "items": [
             {
-                "name": "Party Hats",
-                "category": "Party",
+                "name": "Supplies Hats",
+                "category": "Supplies",
                 "quantity": 10,
                 "checked": false
             },
             {
                 "name": "Streamers",
-                "category": "Party",
+                "category": "Supplies",
                 "quantity": 3,
                 "checked": false
             },
             {
                 "name": "Cups",
-                "category": "Party",
+                "category": "Supplies",
                 "quantity": 20,
                 "checked": false
             },
             {
                 "name": "Plates",
-                "category": "Party",
+                "category": "Supplies",
                 "quantity": 20,
                 "checked": false
             }
@@ -119,25 +119,25 @@ const mockShoppingLists = [
         "items": [
             {
                 "name": "Notebooks",
-                "category": "Stationery",
+                "category": "Other",
                 "quantity": 5,
                 "checked": false
             },
             {
                 "name": "Pens",
-                "category": "Stationery",
+                "category": "Other",
                 "quantity": 10,
                 "checked": false
             },
             {
                 "name": "Markers",
-                "category": "Stationery",
+                "category": "Other",
                 "quantity": 5,
                 "checked": false
             },
             {
                 "name": "Stapler",
-                "category": "Stationery",
+                "category": "Other",
                 "quantity": 1,
                 "checked": false
             }
@@ -153,25 +153,25 @@ const mockShoppingLists = [
         "items": [
             {
                 "name": "Scarf",
-                "category": "Apparel",
+                "category": "Belongings",
                 "quantity": 1,
                 "checked": false
             },
             {
                 "name": "Book",
-                "category": "Books",
+                "category": "Belongings",
                 "quantity": 2,
                 "checked": false
             },
             {
                 "name": "Candle",
-                "category": "Decor",
+                "category": "Other",
                 "quantity": 3,
                 "checked": false
             },
             {
                 "name": "Chocolate Box",
-                "category": "Food",
+                "category": "Groceries",
                 "quantity": 2,
                 "checked": false
             }
@@ -187,25 +187,25 @@ const mockShoppingLists = [
         "items": [
             {
                 "name": "Olive Oil",
-                "category": "Cooking",
+                "category": "Groceries",
                 "quantity": 1,
                 "checked": false
             },
             {
                 "name": "Salt",
-                "category": "Cooking",
+                "category": "Groceries",
                 "quantity": 2,
                 "checked": false
             },
             {
                 "name": "Pepper",
-                "category": "Cooking",
+                "category": "Groceries",
                 "quantity": 1,
                 "checked": false
             },
             {
                 "name": "Flour",
-                "category": "Baking",
+                "category": "Groceries",
                 "quantity": 1,
                 "checked": false
             }
@@ -221,25 +221,25 @@ const mockShoppingLists = [
         "items": [
             {
                 "name": "Yoga Mat",
-                "category": "Exercise",
+                "category": "Belongings",
                 "quantity": 1,
                 "checked": false
             },
             {
                 "name": "Dumbbells",
-                "category": "Exercise",
+                "category": "Belongings",
                 "quantity": 2,
                 "checked": false
             },
             {
                 "name": "Resistance Bands",
-                "category": "Exercise",
+                "category": "Belongings",
                 "quantity": 3,
                 "checked": false
             },
             {
                 "name": "Running Shoes",
-                "category": "Footwear",
+                "category": "Belongings",
                 "quantity": 1,
                 "checked": false
             }
@@ -253,25 +253,25 @@ const mockShoppingLists = [
         "items": [
             {
                 "name": "Potting Soil",
-                "category": "Gardening",
+                "category": "Other",
                 "quantity": 2,
                 "checked": false
             },
             {
                 "name": "Garden Trowel",
-                "category": "Gardening",
+                "category": "Other",
                 "quantity": 1,
                 "checked": false
             },
             {
                 "name": "Watering Can",
-                "category": "Gardening",
+                "category": "Other",
                 "quantity": 1,
                 "checked": false
             },
             {
                 "name": "Flower Seeds",
-                "category": "Gardening",
+                "category": "Other",
                 "quantity": 4,
                 "checked": false
             }
@@ -281,29 +281,29 @@ const mockShoppingLists = [
         "isPublic": true
     },
     {
-        "shoppingListName": "BBQ Party",
+        "shoppingListName": "BBQ Supplies",
         "items": [
             {
                 "name": "Steaks",
-                "category": "Meat",
+                "category": "Groceries",
                 "quantity": 4,
                 "checked": false
             },
             {
                 "name": "Sausages",
-                "category": "Meat",
+                "category": "Groceries",
                 "quantity": 10,
                 "checked": false
             },
             {
                 "name": "Burger Buns",
-                "category": "Bakery",
+                "category": "Groceries",
                 "quantity": 12,
                 "checked": false
             },
             {
                 "name": "Ketchup",
-                "category": "Condiments",
+                "category": "Groceries",
                 "quantity": 1,
                 "checked": false
             }

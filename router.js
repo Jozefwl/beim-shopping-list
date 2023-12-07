@@ -69,14 +69,18 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Username or password incorrect' });
         }
 
-        // Generate a JWT token that includes the user's ID and role
+        // Calculate the expiration time
+        const expirationDuration = 60 * 60; // 60 minutes in seconds
+        const expirationTimestamp = Math.floor(Date.now() / 1000) + expirationDuration; // Current time in seconds + duration
+
+        // Generate a JWT token that includes the user's ID, role, and expiration timestamp
         const token = jwt.sign(
             {
                 userId: user._id,
-                role: user.role  // Include the user's role in the token
+                role: user.role, // Include the user's role in the token
+                exp: expirationTimestamp // Explicit expiration timestamp
             },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            process.env.JWT_SECRET
         );
 
         res.json({ message: 'Successfully authenticated', userToken: token });
@@ -85,7 +89,7 @@ router.post('/login', async (req, res) => {
     }
 });
 
-
+// POST command to register
 router.post('/register', async (req, res) => {
     try {
         // Check if the user already exists
@@ -112,8 +116,8 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// GET command to get all lists
-router.get('/getAllLists', authenticate, isAdmin, async (req, res) => {
+// POST command to get all lists
+router.post('/getAllLists', authenticate, isAdmin, async (req, res) => {
     try {
         const lists = await ShoppingList.find({});
         res.json(lists);
@@ -169,7 +173,7 @@ router.get('/getList/:listId', async (req, res) => {
 
 
 
-//POST command to update a list
+//PUT command to update a list
 router.put('/updateList/:listId', authenticate, validateList, async (req, res) => {
     const listId = req.params.listId;
 
@@ -194,26 +198,6 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
         handleError(res, error);
     }
 });
-
-
-// GET command to get share permissions of a list
-router.get('/getSharePermissions/:listId', authenticate, async (req, res) => {
-    const listId = req.params.listId;
-
-    if (!validateObjectId(listId)) return handleInvalidId(res);
-
-    try {
-        const list = await ShoppingList.findById(req.params.listId);
-        if (list) {
-            res.json({ sharedTo: list.sharedTo, isPublic: list.isPublic });
-        } else {
-            handleNotFound(res, null);
-        }
-    } catch (error) {
-        handleError(res, error);
-    }
-});
-
 
 // DELETE command to delete a list
 router.delete('/deleteList/:listId', authenticate, async (req, res) => {
@@ -269,7 +253,7 @@ router.post('/createList', authenticate, (req, res, next) => {
             shoppingListName: req.body.shoppingListName,
             ownerId: req.user.id, // Set the owner ID to the authenticated user's ID
             sharedTo: sharedToUserIds,
-            isPublic: req.body.state === 'public',
+            isPublic: req.body.isPublic,
             items: req.body.items
         };
 
@@ -283,8 +267,8 @@ router.post('/createList', authenticate, (req, res, next) => {
 });
 
 
-// GET command to get all public lists
-router.get('/getAllPublicLists', async (req, res) => {
+// POST command to get all public lists
+router.post('/getAllPublicLists', async (req, res) => {
     try {
         const publicLists = await ShoppingList.find({ isPublic: true });
         res.json(publicLists);
@@ -293,6 +277,7 @@ router.get('/getAllPublicLists', async (req, res) => {
     }
 });
 
+//GET command to get user's lists
 router.get('/getMyLists', authenticate, async (req, res) => {
     try {
         const userId = req.user.id; // Assuming authenticate middleware sets req.user
@@ -306,5 +291,49 @@ router.get('/getMyLists', authenticate, async (req, res) => {
     }
 });
 
+// post command to get usernames for given user IDs
+router.post('/getUsernames', async (req, res) => {
+    try {
+        const inputUserIds = req.body.userIds;
+        if (!Array.isArray(inputUserIds)) {
+            return res.status(400).json({ message: 'Invalid input: Expected an array of user IDs' });
+        }
+
+        // Filter valid user IDs
+        const validUserIds = inputUserIds.filter(userId => mongoose.Types.ObjectId.isValid(userId));
+        if (validUserIds.length === 0) {
+            return res.status(400).json({ message: 'Invalid input: No valid user IDs provided' });
+        }
+
+        // Find users with the provided IDs
+        const users = await User.find({ _id: { $in: validUserIds } }).select('username _id');
+
+        // Create a mapping of user IDs to usernames
+        const usernameMap = users.reduce((map, user) => {
+            map[user._id.toString()] = user.username;
+            return map;
+        }, {});
+
+        res.json(usernameMap);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// POST command to refresh token
+router.post('/refreshToken', authenticate, async (req, res) => {
+    try {
+        const newToken = jwt.sign(
+            { userId: req.user.id, role: req.user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        res.json({ newToken });
+    } catch (error) {
+        handleError(res, error);
+    }
+});
 
 module.exports = router;
