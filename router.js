@@ -18,12 +18,43 @@ const handleAccessDenied = (res) => res.status(403).json({ message: 'Access deni
 // Common validation logic for list updates and creation
 function validateList(req, res, next, schemaValidation) {
     const validationResult = schemaValidation.validate(req.body, { abortEarly: false });
-
     if (validationResult.error) {
         return res.status(400).json({ message: validationResult.error.details.map(detail => detail.message) });
     }
-
     next(); // Continue if validation is successful
+}
+
+// Function to get user IDs from usernames
+async function getUserIdsFromUsernames(usernames) {
+    const users = await User.find({ username: { $in: usernames } }).select('_id username');
+    const userIdMap = {};
+    users.forEach(user => {
+        userIdMap[user.username] = user._id.toString();
+    });
+    return userIdMap;
+}
+
+// Function to verify user credentials and generate a JWT token
+async function verifyUserAndGenerateToken(username, password) {
+    const user = await User.findOne({ username: username });
+    if (!user) {
+        return { error: 'Username or password incorrect', status: 401 };
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+        return { error: 'Username or password incorrect', status: 401 };
+    }
+
+    const expirationDuration = 60 * 60; // 60 minutes in seconds
+    const expirationTimestamp = Math.floor(Date.now() / 1000) + expirationDuration;
+    
+    const token = jwt.sign(
+        { userId: user._id, role: user.role, exp: expirationTimestamp },
+        process.env.JWT_SECRET
+    );
+
+    return { token: token, userId: user._id, expiresAt: expirationTimestamp, status: 200 };
 }
 
 // Define all routes here
@@ -57,33 +88,11 @@ router.get('/', async (req, res) => {
 // POST command to login
 router.post('/login', async (req, res) => {
     try {
-        // Find the user by username
-        const user = await User.findOne({ username: req.body.username });
-        if (!user) {
-            return res.status(401).json({ message: 'Username or password incorrect' });
+        const result = await verifyUserAndGenerateToken(req.body.username, req.body.password);
+        if (result.error) {
+            return res.status(result.status).json({ message: result.error });
         }
-
-        // Check if the password is correct
-        const validPassword = await bcrypt.compare(req.body.password, user.password);
-        if (!validPassword) {
-            return res.status(401).json({ message: 'Username or password incorrect' });
-        }
-
-        // Calculate the expiration time
-        const expirationDuration = 60 * 60; // 60 minutes in seconds
-        const expirationTimestamp = Math.floor(Date.now() / 1000) + expirationDuration; // Current time in seconds + duration
-
-        // Generate a JWT token that includes the user's ID, role, and expiration timestamp
-        const token = jwt.sign(
-            {
-                userId: user._id,
-                role: user.role, // Include the user's role in the token
-                exp: expirationTimestamp // Explicit expiration timestamp
-            },
-            process.env.JWT_SECRET
-        );
-
-        res.json({ message: 'Successfully authenticated', userToken: token });
+        res.json({ message: 'Successfully authenticated', userToken: result.token, expiresAt: result.expiresAt });
     } catch (error) {
         res.status(500).json({ message: 'Error logging in', error: error.message });
     }
@@ -171,8 +180,6 @@ router.get('/getList/:listId', async (req, res) => {
     }
 });
 
-
-
 //PUT command to update a list
 router.put('/updateList/:listId', authenticate, validateList, async (req, res) => {
     const listId = req.params.listId;
@@ -180,20 +187,82 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
     if (!validateObjectId(listId)) return handleInvalidId(res);
 
     try {
+        let errors = [];
         const list = await ShoppingList.findById(listId);
-        if (!list) { return handleNotFound(res, null); }
+        if (!list) return handleNotFound(res, 'List not found.');
 
-        // Check if the user is the owner of the list or it's shared with them
-        if (list.ownerId !== req.user.id && !list.sharedTo.includes(req.user.id)) {
-            return handleAccessDenied(res);
+        // Check authorization
+        const isAuthorized = list.ownerId === req.user.id || list.sharedTo.includes(req.user.id) || req.user.role === 'admin';
+        if (!isAuthorized) return handleAccessDenied(res);
+
+        // Prevent changing ownerId
+        if ('ownerId' in req.body) {
+            return res.status(400).json({ message: "Updating ownerId is not allowed." });
         }
 
-        const updatedList = await ShoppingList.findByIdAndUpdate(listId, req.body, { new: true });
-        if (updatedList) {
-            res.json(updatedList);
-        } else {
-            res.status(404).json({ message: 'Updated list not found.' });
+        // Process items updates and additions
+        if ('items' in req.body && Array.isArray(req.body.items)) {
+            if (req.body.items.length === 0) {
+                errors.push({ message: "Items array cannot be empty." });
+            }
+            // Convert usernames to user IDs for DB
+            if ('sharedTo' in req.body && Array.isArray(req.body.sharedTo)) {
+                const userIdMap = await getUserIdsFromUsernames(req.body.sharedTo);
+                req.body.sharedTo = req.body.sharedTo.map(username => userIdMap[username] || username);
+            }
+            req.body.items.forEach(item => {
+                if (item._id) {
+                    const itemIndex = list.items.findIndex(existingItem => existingItem._id.toString() === item._id);
+                    if (itemIndex !== -1) {
+                        // Update only specified fields of the item
+                        if ('name' in item) {
+                            list.items[itemIndex].name = item.name;
+                        }
+                        if ('category' in item) {
+                            list.items[itemIndex].category = item.category;
+                        }
+                        // Delete item if quantity is 0
+                        if ('quantity' in item && item.quantity === 0) {
+                            list.items.splice(itemIndex, 1); // Remove the item from the list
+                        } else if ('quantity' in item) {
+                            list.items[itemIndex].quantity = item.quantity;
+                        }
+                            if ('checked' in item) {
+                                list.items[itemIndex].checked = item.checked;
+                            }
+                        } else {
+                            errors.push({ message: "Item not found", itemId: item._id });
+                        }
+                    } else {
+                        const newItem = {
+                            name: item.name,
+                            category: item.category || 'Other', // Default category to 'Other' if not provided
+                            quantity: item.quantity,
+                            checked: item.checked
+                        };
+                
+                        // Validate new item
+                        if (typeof newItem.name !== 'string' || typeof newItem.quantity !== 'number' || typeof newItem.checked !== 'boolean') {
+                            errors.push({ message: "New items must include name, quantity, and checked properties." });
+                        } else {
+                            list.items.push(newItem); // Add the new item to the list
+                        }
+                    }
+                });
         }
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Update other fields of the list
+        Object.keys(req.body).forEach(key => {
+            if (key !== 'items') { // Ignore the 'items' field for now
+                list[key] = req.body[key];
+            }
+        });
+
+        const updatedList = await list.save();
+        res.json(updatedList);
     } catch (error) {
         handleError(res, error);
     }
@@ -213,8 +282,8 @@ router.delete('/deleteList/:listId', authenticate, async (req, res) => {
         }
 
         // Check if the user is the owner of the list
-        if (list.ownerId !== req.user.id) {
-            return res.status(403).json({ message: 'Access denied' });
+        if (list.ownerId !== req.user.id || req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied, you are not the owner of the list.' });
         }
 
         await ShoppingList.findByIdAndDelete(id);
@@ -232,23 +301,46 @@ router.post('/createList', authenticate, (req, res, next) => {
 }, async (req, res) => {
     try {
         const ownerId = req.user.id;
+        let errors = [];
         const sharedToUsernames = req.body.sharedTo || [];
         const sharedToUserIds = [];
 
-        // Process 'sharedTo' only if it's provided and not empty
+        // Process 'sharedTo'
         if (sharedToUsernames.length > 0) {
+            const userIdMap = await getUserIdsFromUsernames(sharedToUsernames);
             for (const username of sharedToUsernames) {
-                const user = await User.findOne({ username: username });
-
-                if (!user) {
-                    return res.status(400).json({ message: `User ${username} not found` });
-                } else if (user._id.toString() === ownerId) {
-                    return res.status(400).json({ message: 'SharedTo list cannot include the owner' });
+                const userId = userIdMap[username];
+                if (!userId) {
+                    errors.push({ message: `User ${username} not found` });
+                } else if (userId === ownerId) {
+                    errors.push({ message: 'SharedTo list cannot include the owner' });
                 } else {
-                    sharedToUserIds.push(user._id);
+                    sharedToUserIds.push(userId);
                 }
             }
         }
+
+       // Validate and process list items
+       if (req.body.items && Array.isArray(req.body.items)) {
+        req.body.items = req.body.items.map(item => {
+            // Set default category if not provided
+            if (!item.category) {
+                item.category = 'Other';
+            }
+            return item;
+        });
+
+        // Further validation for each item
+        req.body.items.forEach(item => {
+            if (typeof item.name !== 'string' || typeof item.quantity !== 'number' || typeof item.checked !== 'boolean') {
+                errors.push({ message: "Each item must include name, quantity, and checked properties." });
+            }
+        });
+    }
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
         const newListData = {
             shoppingListName: req.body.shoppingListName,
             ownerId: req.user.id, // Set the owner ID to the authenticated user's ID
@@ -277,7 +369,7 @@ router.post('/getAllPublicLists', async (req, res) => {
     }
 });
 
-//GET command to get user's lists
+// GET command to get user's lists
 router.get('/getMyLists', authenticate, async (req, res) => {
     try {
         const userId = req.user.id; // Assuming authenticate middleware sets req.user
@@ -291,7 +383,7 @@ router.get('/getMyLists', authenticate, async (req, res) => {
     }
 });
 
-// post command to get usernames for given user IDs
+// POST command to get usernames for given user IDs
 router.post('/getUsernames', async (req, res) => {
     try {
         const inputUserIds = req.body.userIds;

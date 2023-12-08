@@ -14,6 +14,12 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 app.use(router);
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+      return res.status(400).json({ message: "Bad JSON format" });
+  }
+  next(err); // If it's not a JSON parse error, pass it to the default error handler
+});
 
 
 const PORT = process.env.PORT || 3000;

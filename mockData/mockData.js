@@ -32,7 +32,8 @@ const mockShoppingLists = [
         "sharedTo": [
             "uhor25"
         ],
-        "isPublic": false
+        "isPublic": false,
+        "isArchived": false
     },
     {
         "shoppingListName": "Shopping List",
@@ -46,7 +47,8 @@ const mockShoppingLists = [
         ],
         "ownerId": "uhor25",
         "sharedTo": [],
-        "isPublic": true
+        "isPublic": true,
+        "isArchived": true
     },
     {
         "shoppingListName": "Weekly Groceries",
@@ -80,7 +82,8 @@ const mockShoppingLists = [
         "sharedTo": [
             "tibor123"
         ],
-        "isPublic": true
+        "isPublic": true,
+        "isArchived": false
     },
     {
         "shoppingListName": "Supplies Supplies",
@@ -112,7 +115,8 @@ const mockShoppingLists = [
         ],
         "ownerId": "uhor25",
         "sharedTo": [],
-        "isPublic": false
+        "isPublic": false,
+        "isArchived": false
     },
     {
         "shoppingListName": "Office Supplies",
@@ -146,7 +150,8 @@ const mockShoppingLists = [
         "sharedTo": [
             "mariak22"
         ],
-        "isPublic": false
+        "isPublic": false,
+        "isArchived": false
     },
     {
         "shoppingListName": "Holiday Gifts",
@@ -180,7 +185,8 @@ const mockShoppingLists = [
         "sharedTo": [
             "julie_w3"
         ],
-        "isPublic": true
+        "isPublic": true,
+        "isArchived": false
     },
     {
         "shoppingListName": "Kitchen Essentials",
@@ -214,7 +220,8 @@ const mockShoppingLists = [
         "sharedTo": [
             "tibor123"
         ],
-        "isPublic": true
+        "isPublic": true,
+        "isArchived": false
     },
     {
         "shoppingListName": "Fitness Gear",
@@ -246,7 +253,8 @@ const mockShoppingLists = [
         ],
         "ownerId": "alex_fit",
         "sharedTo": [],
-        "isPublic": true
+        "isPublic": true,
+        "isArchived": false
     },
     {
         "shoppingListName": "Gardening Supplies",
@@ -278,7 +286,8 @@ const mockShoppingLists = [
         ],
         "ownerId": "green_thumb42",
         "sharedTo": [],
-        "isPublic": true
+        "isPublic": true,
+        "isArchived": false
     },
     {
         "shoppingListName": "BBQ Supplies",
@@ -310,7 +319,8 @@ const mockShoppingLists = [
         ],
         "ownerId": "chefmike",
         "sharedTo": [],
-        "isPublic": true
+        "isPublic": true,
+        "isArchived": false
     }
 ];
 
