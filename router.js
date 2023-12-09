@@ -28,9 +28,21 @@ function validateList(req, res, next, schemaValidation) {
 async function getUserIdsFromUsernames(usernames) {
     const users = await User.find({ username: { $in: usernames } }).select('_id username');
     const userIdMap = {};
-    users.forEach(user => {
-        userIdMap[user.username] = user._id.toString();
-    });
+    const invalidUsernames = [];
+
+    for (const username of usernames) {
+        const user = users.find(u => u.username === username);
+        if (user) {
+            userIdMap[username] = user._id.toString();
+        } else {
+            invalidUsernames.push(username);
+        }
+    }
+
+    if (invalidUsernames.length > 0) {
+        throw new Error("The following usernames do not exist in the database: " + invalidUsernames.join(', '));
+    }
+
     return userIdMap;
 }
 
@@ -200,16 +212,17 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
             return res.status(400).json({ message: "Updating ownerId is not allowed." });
         }
 
+        if ('sharedTo' in req.body && Array.isArray(req.body.sharedTo)) {
+            const userIdMap = await getUserIdsFromUsernames(req.body.sharedTo);
+            req.body.sharedTo = req.body.sharedTo.map(username => userIdMap[username] || username);
+        }
+
         // Process items updates and additions
         if ('items' in req.body && Array.isArray(req.body.items)) {
             if (req.body.items.length === 0) {
                 errors.push({ message: "Items array cannot be empty." });
             }
             // Convert usernames to user IDs for DB
-            if ('sharedTo' in req.body && Array.isArray(req.body.sharedTo)) {
-                const userIdMap = await getUserIdsFromUsernames(req.body.sharedTo);
-                req.body.sharedTo = req.body.sharedTo.map(username => userIdMap[username] || username);
-            }
             req.body.items.forEach(item => {
                 if (item._id) {
                     const itemIndex = list.items.findIndex(existingItem => existingItem._id.toString() === item._id);
@@ -374,8 +387,13 @@ router.get('/getMyLists', authenticate, async (req, res) => {
     try {
         const userId = req.user.id; // Assuming authenticate middleware sets req.user
 
-        // Fetch lists where the logged-in user is the owner
-        const userLists = await ShoppingList.find({ ownerId: userId });
+        // Fetch lists where the logged-in user is the owner or in the sharedTo array
+        const userLists = await ShoppingList.find({
+            $or: [
+                { ownerId: userId }, // User is the owner
+                { sharedTo: userId }, // User is in the sharedTo array
+            ],
+        });
 
         res.json(userLists);
     } catch (error) {
