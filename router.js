@@ -89,7 +89,6 @@ router.get('/', async (req, res) => {
             serverStatus: {
                 version: serverStatus.version,
                 databaseUptime: uptimeString,
-                // Add more server status details as needed
             }
         });
     } catch (error) {
@@ -295,14 +294,18 @@ router.delete('/deleteList/:listId', authenticate, async (req, res) => {
         }
 
         // Check if the user is the owner of the list
-        if (list.ownerId !== req.user.id || req.user.role !== 'admin') {
-            return res.status(403).json({ message: 'Access denied, you are not the owner of the list.' });
+        if (list.ownerId == req.user.id || req.user.role == 'admin') {
+            await ShoppingList.findByIdAndDelete(id);
+            res.json({ message: 'List deleted successfully' });
+            
+        } else {
+            return res.status(403).json({ message: 'Access denied, you are not the owner of the list.', reqUserId: req.user.id, listOwnerId: list.ownerId });
         }
 
-        await ShoppingList.findByIdAndDelete(id);
-        res.json({ message: 'List deleted successfully' });
+       
 
     } catch (error) {
+        console.error('Error deleting list:', error);
         handleError(res, error);
     }
 });
