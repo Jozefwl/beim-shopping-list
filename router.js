@@ -24,7 +24,7 @@ function validateList(req, res, next, schemaValidation) {
     next(); // Continue if validation is successful
 }
 
-// Function to get user IDs from usernames
+// Function to get user IDs from usernamess
 async function getUserIdsFromUsernames(usernames) {
     const users = await User.find({ username: { $in: usernames } }).select('_id username');
     const userIdMap = {};
@@ -233,15 +233,15 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
                         if ('category' in item) {
                             list.items[itemIndex].category = item.category;
                         }
+                        if ('checked' in item) {
+                            list.items[itemIndex].checked = item.checked;
+                        }
                         // Delete item if quantity is 0
                         if ('quantity' in item && item.quantity === 0) {
                             list.items.splice(itemIndex, 1); // Remove the item from the list
                         } else if ('quantity' in item) {
                             list.items[itemIndex].quantity = item.quantity;
-                        }
-                            if ('checked' in item) {
-                                list.items[itemIndex].checked = item.checked;
-                            }
+                        }                          
                         } else {
                             errors.push({ message: "Item not found", itemId: item._id });
                         }
