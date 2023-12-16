@@ -200,7 +200,7 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
     try {
         let errors = [];
         const list = await ShoppingList.findById(listId);
-        if (!list) return handleNotFound(res, 'List not found.');
+        if (!list) return handleNotFound(res);
 
         // Check authorization
         const isAuthorized = list.ownerId === req.user.id || list.sharedTo.includes(req.user.id) || req.user.role === 'admin';
