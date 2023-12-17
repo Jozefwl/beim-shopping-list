@@ -343,6 +343,9 @@ router.post('/createList', authenticate, (req, res, next) => {
             if (!item.category) {
                 item.category = 'Other';
             }
+            if(item.quantity === 0 || item.quantity < 0){
+                item.quantity = 1
+            }
             return item;
         });
 
