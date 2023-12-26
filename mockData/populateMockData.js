@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/Users'); // Import your User model
 const ShoppingList = require('../models/ShoppingList'); // Import your ShoppingList model
 const readline = require('readline');
-const { mongoURI } = require('../config'); // Use require for importing
+const mongoURI = process.env.MONGO_URI; // Use require for importing
 const { mockUsers, mockShoppingLists } = require('./mockData'); // Use destructuring for importing
 
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
