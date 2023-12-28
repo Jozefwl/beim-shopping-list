@@ -10,10 +10,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
 const validateObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
-const handleError = (res, error) => {
-    console.error('Error:', error);
-    res.status(500).json({ message: error.message });
-};
+const handleError = (res, error) => res.status(500).json({ message: error.message });
 const handleNotFound = (res, item) => item ? res.json(item) : res.status(404).json({ message: 'List not found' });
 const handleInvalidId = (res) => res.status(400).json({ message: 'Invalid ID format' });
 const handleAccessDenied = (res) => res.status(403).json({ message: 'Access denied' });
@@ -194,6 +191,7 @@ router.get('/getList/:listId', async (req, res) => {
     }
 });
 
+//PUT command to update a list
 router.put('/updateList/:listId', authenticate, validateList, async (req, res) => {
     const listId = req.params.listId;
 
@@ -213,26 +211,67 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
             return res.status(400).json({ message: "Updating ownerId is not allowed." });
         }
 
-        // Transform sharedTo usernames to user IDs
         if ('sharedTo' in req.body && Array.isArray(req.body.sharedTo)) {
             const userIdMap = await getUserIdsFromUsernames(req.body.sharedTo);
             req.body.sharedTo = req.body.sharedTo.map(username => userIdMap[username] || username);
         }
 
-        // Handle items array
+        // Process items updates and additions
         if ('items' in req.body && Array.isArray(req.body.items)) {
-            // [Your existing logic for processing items goes here]
+            if (req.body.items.length === 0) {
+                errors.push({ message: "Items array cannot be empty." });
+            }
+            // Convert usernames to user IDs for DB
+            req.body.items.forEach(item => {
+                if (item._id) {
+                    const itemIndex = list.items.findIndex(existingItem => existingItem._id.toString() === item._id);
+                    if (itemIndex !== -1) {
+                        // Update only specified fields of the item
+                        if ('name' in item) {
+                            list.items[itemIndex].name = item.name;
+                        }
+                        if ('category' in item) {
+                            list.items[itemIndex].category = item.category;
+                        }
+                        if ('checked' in item) {
+                            list.items[itemIndex].checked = item.checked;
+                        }
+                        // Delete item if quantity is 0
+                        if ('quantity' in item && item.quantity === 0) {
+                            list.items.splice(itemIndex, 1); // Remove the item from the list
+                        } else if ('quantity' in item) {
+                            list.items[itemIndex].quantity = item.quantity;
+                        }                          
+                        } else {
+                            errors.push({ message: "Item not found", itemId: item._id });
+                        }
+                    } else {
+                        const newItem = {
+                            name: item.name,
+                            category: item.category || 'Other', // Default category to 'Other' if not provided
+                            quantity: item.quantity,
+                            checked: item.checked
+                        };
+                
+                        // Validate new item
+                        if (typeof newItem.name !== 'string' || typeof newItem.quantity !== 'number' || typeof newItem.checked !== 'boolean') {
+                            errors.push({ message: "New items must include name, quantity, and checked properties." });
+                        } else {
+                            list.items.push(newItem); // Add the new item to the list
+                        }
+                    }
+                });
         }
-
-        // Remove fields that shouldn't be updated directly
-        const { ownerId, ...updateData } = req.body;
-
-        // Update other fields of the list
-        Object.assign(list, updateData);
-
         if (errors.length > 0) {
             return res.status(400).json({ errors });
         }
+
+        // Update other fields of the list
+        Object.keys(req.body).forEach(key => {
+            if (key !== 'items') { // Ignore the 'items' field for now
+                list[key] = req.body[key];
+            }
+        });
 
         const updatedList = await list.save();
         res.json(updatedList);
@@ -240,7 +279,6 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
         handleError(res, error);
     }
 });
-
 
 // DELETE command to delete a list
 router.delete('/deleteList/:listId', authenticate, async (req, res) => {
