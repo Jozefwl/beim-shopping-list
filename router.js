@@ -11,7 +11,7 @@ const bcrypt = require('bcrypt');
 
 const validateObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 const handleError = (res, error) => {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     res.status(500).json({ message: error.message });
 };
 const handleNotFound = (res, item) => item ? res.json(item) : res.status(404).json({ message: 'List not found' });
@@ -141,6 +141,9 @@ router.post('/register', async (req, res) => {
 
 // POST command to get all lists
 router.post('/getAllLists', authenticate, isAdmin, async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     try {
         const lists = await ShoppingList.find({});
         res.json(lists);
@@ -149,51 +152,36 @@ router.post('/getAllLists', authenticate, isAdmin, async (req, res) => {
     }
 });
 
-// GET command to get a specific list
-router.get('/getList/:listId', async (req, res) => {
+router.get('/getList/:listId', authenticate, async (req, res) => {
     const listId = req.params.listId;
 
     if (!validateObjectId(listId)) return handleInvalidId(res);
 
     try {
         const list = await ShoppingList.findById(listId);
-        if (!list) return handleNotFound(res, null);
+        if (!list) return handleNotFound(res);
 
-        // Check if the list is not public
+        // If the list is not public, check user authorization
         if (!list.isPublic) {
-            const authHeader = req.headers['authorization'];
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({ message: 'Unauthorized: No token provided' });
+            if (!req.user) {
+                // User is not authenticated
+                return res.status(401).json({ message: 'Unauthorized: Access denied' });
             }
 
-            const token = authHeader.substring(7); // Extract the token
-            if (!token) {
-                return res.status(401).json({ message: 'Unauthorized: No token provided' });
-            }
-
-            try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                req.user = {
-                    id: decoded.userId,
-                    role: decoded.role
-                };
-
-                // Check if the user is authorized to view the list
-                if (list.ownerId !== req.user.id && !list.sharedTo.includes(req.user.id) && req.user.role !== 'admin') {
-                    return handleAccessDenied(res);
-                }
-            } catch (error) {
-                return res.status(401).json({ message: 'Unauthorized: Invalid token', error: error.message });
+            // Check if the user is authorized to view the list
+            if (list.ownerId !== req.user.id && !list.sharedTo.includes(req.user.id) && req.user.role !== 'admin') {
+                return handleAccessDenied(res);
             }
         }
 
-        // Continue with the rest of the route logic
+        // User is authorized or list is public
         res.json(list);
     } catch (error) {
         handleError(res, error);
     }
 });
 
+//PUT command to update a list
 router.put('/updateList/:listId', authenticate, validateList, async (req, res) => {
     const listId = req.params.listId;
 
@@ -213,26 +201,67 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
             return res.status(400).json({ message: "Updating ownerId is not allowed." });
         }
 
-        // Transform sharedTo usernames to user IDs
         if ('sharedTo' in req.body && Array.isArray(req.body.sharedTo)) {
             const userIdMap = await getUserIdsFromUsernames(req.body.sharedTo);
             req.body.sharedTo = req.body.sharedTo.map(username => userIdMap[username] || username);
         }
 
-        // Handle items array
+        // Process items updates and additions
         if ('items' in req.body && Array.isArray(req.body.items)) {
-            // [Your existing logic for processing items goes here]
+            if (req.body.items.length === 0) {
+                errors.push({ message: "Items array cannot be empty." });
+            }
+            // Convert usernames to user IDs for DB
+            req.body.items.forEach(item => {
+                if (item._id) {
+                    const itemIndex = list.items.findIndex(existingItem => existingItem._id.toString() === item._id);
+                    if (itemIndex !== -1) {
+                        // Update only specified fields of the item
+                        if ('name' in item) {
+                            list.items[itemIndex].name = item.name;
+                        }
+                        if ('category' in item) {
+                            list.items[itemIndex].category = item.category;
+                        }
+                        if ('checked' in item) {
+                            list.items[itemIndex].checked = item.checked;
+                        }
+                        // Delete item if quantity is 0
+                        if ('quantity' in item && item.quantity === 0) {
+                            list.items.splice(itemIndex, 1); // Remove the item from the list
+                        } else if ('quantity' in item) {
+                            list.items[itemIndex].quantity = item.quantity;
+                        }                          
+                        } else {
+                            errors.push({ message: "Item not found", itemId: item._id });
+                        }
+                    } else {
+                        const newItem = {
+                            name: item.name,
+                            category: item.category || 'Other', // Default category to 'Other' if not provided
+                            quantity: item.quantity,
+                            checked: item.checked
+                        };
+                
+                        // Validate new item
+                        if (typeof newItem.name !== 'string' || typeof newItem.quantity !== 'number' || typeof newItem.checked !== 'boolean') {
+                            errors.push({ message: "New items must have proper name, quantity, and checked properties. Check formats carefully." });
+                        } else {
+                            list.items.push(newItem); // Add the new item to the list
+                        }
+                    }
+                });
         }
-
-        // Remove fields that shouldn't be updated directly
-        const { ownerId, ...updateData } = req.body;
-
-        // Update other fields of the list
-        Object.assign(list, updateData);
-
         if (errors.length > 0) {
             return res.status(400).json({ errors });
         }
+
+        // Update other fields of the list
+        Object.keys(req.body).forEach(key => {
+            if (key !== 'items') { // Ignore the 'items' field for now
+                list[key] = req.body[key];
+            }
+        });
 
         const updatedList = await list.save();
         res.json(updatedList);
@@ -244,6 +273,9 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
 
 // DELETE command to delete a list
 router.delete('/deleteList/:listId', authenticate, async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized: Access denied' });
+    }
     const id = req.params.listId;
 
     if (!validateObjectId(id)) return handleInvalidId(res);
@@ -275,6 +307,9 @@ router.delete('/deleteList/:listId', authenticate, async (req, res) => {
 
 // POST command to create a new list
 router.post('/createList', authenticate, (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     validateList(req, res, next, createListSchemaValidation);
 }, async (req, res) => {
     try {
@@ -291,7 +326,7 @@ router.post('/createList', authenticate, (req, res, next) => {
                 if (!userId) {
                     errors.push({ message: `User ${username} not found` });
                 } else if (userId === ownerId) {
-                    errors.push({ message: 'SharedTo list cannot include the owner' });
+                    errors.push({ message: 'The list of people you are sharing to cannot include the owner' });
                 } else {
                     sharedToUserIds.push(userId);
                 }
@@ -314,7 +349,7 @@ router.post('/createList', authenticate, (req, res, next) => {
         // Further validation for each item
         req.body.items.forEach(item => {
             if (typeof item.name !== 'string' || typeof item.quantity !== 'number' || typeof item.checked !== 'boolean') {
-                errors.push({ message: "Each item must include name, quantity, and checked properties." });
+                errors.push({ message: "Please check if you entered the name, quantity, and checked properties." });
             }
         });
     }
@@ -352,6 +387,9 @@ router.post('/getAllPublicLists', async (req, res) => {
 
 // GET command to get user's lists
 router.get('/getMyLists', authenticate, async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     try {
         const userId = req.user.id; // Assuming authenticate middleware sets req.user
 
@@ -371,6 +409,9 @@ router.get('/getMyLists', authenticate, async (req, res) => {
 
 // POST command to get usernames for given user IDs
 router.post('/getUsernames', async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     try {
         const inputUserIds = req.body.userIds;
         if (!Array.isArray(inputUserIds)) {
@@ -401,6 +442,9 @@ router.post('/getUsernames', async (req, res) => {
 
 // POST command to refresh token
 router.post('/refreshToken', authenticate, async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     try {
         const newToken = jwt.sign(
             { userId: req.user.id, role: req.user.role },

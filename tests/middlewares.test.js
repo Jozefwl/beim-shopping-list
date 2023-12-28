@@ -46,56 +46,43 @@ describe('isAdmin middleware', () => {
 describe('authenticate middleware', () => {
     let mockRequest;
     let mockResponse;
-    let nextFunction;
+    let nextFunction = jest.fn();
 
     beforeEach(() => {
-        mockRequest = {};
-        mockResponse = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-        };
-        nextFunction = jest.fn();
-        process.env.JWT_SECRET = 'testsecret'; // Set a test secret
+        mockRequest = { headers: {} };
+        mockResponse = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        nextFunction.mockClear(); // Clear mock history before each test
     });
 
-    it('should authenticate a valid token', () => {
-        const token = 'validToken';
-        jwt.verify.mockImplementation(() => ({ userId: '123', role: 'user' })); // Mock a successful token verification
-        mockRequest.headers = {
-            'authorization': `Bearer ${token}`
-        };
+    it('decodes userId and role if user token is provided', () => {
+        const testToken = 'validToken';
+        const decodedToken = { userId: '12345', role: 'user' };
+        jwt.verify = jest.fn().mockReturnValue(decodedToken);
+        mockRequest.headers['authorization'] = `Bearer ${testToken}`;
 
         authenticate(mockRequest, mockResponse, nextFunction);
 
-        expect(jwt.verify).toHaveBeenCalledWith(token, 'testsecret');
-        expect(mockRequest.user).toEqual({ id: '123', role: 'user' });
+        expect(jwt.verify).toHaveBeenCalledWith(testToken, process.env.JWT_SECRET);
+        expect(mockRequest.user).toEqual({ id: decodedToken.userId, role: decodedToken.role });
         expect(nextFunction).toHaveBeenCalled();
     });
 
-    it('should return 401 for no token provided', () => {
-        mockRequest.headers = {};
+    it('returns 401 if invalid token is entered', () => {
+        const testToken = 'invalidToken';
+        jwt.verify = jest.fn(() => { throw new Error('Invalid token'); });
+        mockRequest.headers['authorization'] = `Bearer ${testToken}`;
 
         authenticate(mockRequest, mockResponse, nextFunction);
 
-        expect(mockResponse.status).toHaveBeenCalledWith(401);
-        expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Unauthorized: No token provided' });
-        expect(nextFunction).not.toHaveBeenCalled();
-    });
-
-    it('should return 401 for invalid token', () => {
-        const token = 'invalidToken';
-        jwt.verify.mockImplementation(() => {
-            throw new Error('Invalid token');
-        });
-        mockRequest.headers = {
-            'authorization': `Bearer ${token}`
-        };
-
-        authenticate(mockRequest, mockResponse, nextFunction);
-
-        expect(jwt.verify).toHaveBeenCalledWith(token, 'testsecret');
         expect(mockResponse.status).toHaveBeenCalledWith(401);
         expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Unauthorized: Invalid token', error: 'Invalid token' });
         expect(nextFunction).not.toHaveBeenCalled();
+    });
+
+    it('does nothing if no token is provided', () => {
+        authenticate(mockRequest, mockResponse, nextFunction);
+
+        expect(nextFunction).toHaveBeenCalled();
+        expect(mockRequest.user).toBeUndefined();
     });
 });
