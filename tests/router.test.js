@@ -115,8 +115,7 @@ jest.mock('mongoose', () => {
             ...jest.requireActual('mongoose').Types,
             ObjectId: {
                 ...jest.requireActual('mongoose').Types.ObjectId,
-                isValid: jest.fn().mockReturnValue(true),
-                isInvalid: jest.fn().mockReturnValue(false)
+                isValid: jest.fn().mockImplementation((id) => typeof id === 'string' && id.length <= 32), //goofy ahh parameter
             }
         },
         connection: {
@@ -402,11 +401,13 @@ describe('GET /getList/:listId', () => {
     });
 
     it('returns 400 when invalid id is entered', async () => {
-        const response = await request(app).get('/getList/gugugaga');
+        const invalidId = 'invaIamINVALIDATINGthiSOBJECTlidObjeOBJECTisINVALIDbecauseIsaidSOctId';
+        const response = await request(app).get(`/getList/${invalidId}`);
 
         expect(response.status).toBe(400);
+        expect(response.body).toEqual({ message: 'Invalid ID format' });
     });
-
+    
 
     it('returns 404 when wrong list id is entered', async () => {
         ShoppingList.findById.mockResolvedValue(null); // Simulate not finding the list

@@ -4,7 +4,8 @@
   "description": "Shopping list backend",
   "main": "index.js",
   "scripts": {
-    "test": "jest --watchAll --verbose",
+    "test": "jest --silent",
+    "devTest": "jest --watchAll --verbose",
     "devStart": "nodemon server.js",
     "populateAndStart": "node mockData/populateMockData.js && node server.js"
   },

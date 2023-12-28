@@ -155,7 +155,7 @@ router.post('/getAllLists', authenticate, isAdmin, async (req, res) => {
 router.get('/getList/:listId', authenticate, async (req, res) => {
     const listId = req.params.listId;
 
-    if (!validateObjectId(listId)) return handleInvalidId(res);
+    if (validateObjectId(listId) === false) return handleInvalidId(res);
 
     try {
         const list = await ShoppingList.findById(listId);
