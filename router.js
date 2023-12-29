@@ -407,7 +407,7 @@ router.get('/getMyLists', authenticate, async (req, res) => {
 });
 
 // POST command to get usernames for given user IDs
-router.post('/getUsernames', async (req, res) => {
+router.post('/getUsernames', authenticate, async (req, res) => {
     if (!req.user) {
         return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
     }
