@@ -436,7 +436,10 @@ router.post('/getUsernames', async (req, res) => {
         res.json(usernameMap);
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        if (error.message === 'Invalid user IDs') {
+            return res.status(400).json({ message: 'Invalid input: No valid user IDs provided' });
+        }
+        res.status(500).json({ message: 'Internal server error: '+error.message });
     }
 });
 
@@ -452,7 +455,10 @@ router.post('/refreshToken', authenticate, async (req, res) => {
             { expiresIn: '1h' }
         );
 
-        res.json({ newToken });
+    const expirationDuration = 60 * 60; // 60 minutes in seconds
+    const expirationTimestamp = Math.floor(Date.now() / 1000) + expirationDuration;
+
+        res.json({message: "Successfully renewed token", userToken: newToken, expiresAt: expirationTimestamp });
     } catch (error) {
         handleError(res, error);
     }

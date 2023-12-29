@@ -37,7 +37,7 @@ const mockShoppingLists = [
 		"sharedTo": [
 			"658aa61ab8605d9c41ebf7fc"
 		],
-		"isPublic": false,
+		"isPublic": true,
 		"isArchived": false,
 		"__v": 0
 	},
@@ -94,7 +94,8 @@ const mockShoppingLists = [
 		],
 		"ownerId": "658aa61ab8605d9c41ebf7fd",
 		"sharedTo": [
-			"658aa61ab8605d9c41ebf7fb"
+			"658aa61ab8605d9c41ebf7fb",
+			"658aa61ab8605d9c41ebf7fc"
 		],
 		"isPublic": true,
 		"isArchived": false,

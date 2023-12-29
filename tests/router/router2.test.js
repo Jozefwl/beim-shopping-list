@@ -1,22 +1,22 @@
 const express = require('express');
 const request = require('supertest');
 const mongoose = require('mongoose');
-const router = require('../router');
+const router = require('../../router');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
-const User = require('../models/Users');
-const ShoppingList = require('../models/ShoppingList');
-const authenticate = require('../middlewares/authenticate');
-const isAdmin = require('../middlewares/isAdmin');
-const { mockShoppingLists } = require('../mockData/mockData_db')
+const User = require('../../models/Users');
+const ShoppingList = require('../../models/ShoppingList');
+const authenticate = require('../../middlewares/authenticate');
+const isAdmin = require('../../middlewares/isAdmin');
+const { mockShoppingLists } = require('../../mockData/mockData_db')
 
-jest.mock('../models/ShoppingList');
-jest.mock('../middlewares/authenticate');
-jest.mock('../middlewares/isAdmin');
+jest.mock('../../models/ShoppingList');
+jest.mock('../../middlewares/authenticate');
+jest.mock('../../middlewares/isAdmin');
 
 // Mock authenticate middleware to simulate different user scenarios
-jest.mock('../middlewares/authenticate', () => {
+jest.mock('../../middlewares/authenticate', () => {
     return jest.fn((req, res, next) => {
         const authHeader = req.headers['authorization'];
 
@@ -67,7 +67,7 @@ jest.mock('jsonwebtoken', () => ({
     }),
 }));
 
-jest.mock('../models/Users', () => {
+jest.mock('../../models/Users', () => {
     const mockUserInstance = {
         save: jest.fn()
     };
@@ -290,6 +290,7 @@ describe('POST /getAllLists', () => {
         const response = await request(app).post('/getAllLists');
 
         expect(response.status).toBe(200);
+        expect(Array.isArray(response.body)).toBe(true);
         expect(response.body).toEqual(mockShoppingLists);
     });
 
@@ -346,6 +347,7 @@ describe('GET /getList/:listId', () => {
         const response = await request(app).get('/getList/publicListId');
 
         expect(response.status).toBe(200);
+        expect(typeof response.body).toBe('object');
         expect(response.body).toEqual(mockList);
     });
 
@@ -359,6 +361,7 @@ describe('GET /getList/:listId', () => {
             .set('Authorization', 'Bearer validToken');
 
         expect(response.status).toBe(200);
+        expect(typeof response.body).toBe('object');
         expect(response.body).toEqual(ownerList);
     });
 
@@ -372,6 +375,7 @@ describe('GET /getList/:listId', () => {
             .set('Authorization', 'Bearer validToken');
 
         expect(response.status).toBe(200);
+        expect(typeof response.body).toBe('object');
         expect(response.body).toEqual(sharedToList);
     });
 
@@ -385,6 +389,7 @@ describe('GET /getList/:listId', () => {
             .set('Authorization', 'Bearer validTokenAdmin');
 
         expect(response.status).toBe(200);
+        expect(typeof response.body).toBe('object');
         expect(response.body).toEqual(adminList);
     });
 
@@ -398,6 +403,7 @@ describe('GET /getList/:listId', () => {
             .set('Authorization', 'Bearer validToken');
 
         expect(response.status).toBe(403);
+        expect(typeof response.body).toBe('object');
     });
 
     it('returns 400 when invalid id is entered', async () => {
@@ -405,6 +411,7 @@ describe('GET /getList/:listId', () => {
         const response = await request(app).get(`/getList/${invalidId}`);
 
         expect(response.status).toBe(400);
+        expect(typeof response.body).toBe('object');
         expect(response.body).toEqual({ message: 'Invalid ID format' });
     });
     
@@ -414,6 +421,7 @@ describe('GET /getList/:listId', () => {
         const response = await request(app).get('/getList/nonExistentListId');
 
         expect(response.status).toBe(404);
+        expect(typeof response.body).toBe('object');
     });
 
     // Helper function to set req.user in the authenticate middleware
