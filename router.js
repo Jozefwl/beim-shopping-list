@@ -10,7 +10,10 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
 const validateObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
-const handleError = (res, error) => res.status(500).json({ message: error.message });
+const handleError = (res, error) => {
+    //console.error('Error:', error);
+    res.status(500).json({ message: error.message });
+};
 const handleNotFound = (res, item) => item ? res.json(item) : res.status(404).json({ message: 'List not found' });
 const handleInvalidId = (res) => res.status(400).json({ message: 'Invalid ID format' });
 const handleAccessDenied = (res) => res.status(403).json({ message: 'Access denied' });
@@ -138,6 +141,9 @@ router.post('/register', async (req, res) => {
 
 // POST command to get all lists
 router.post('/getAllLists', authenticate, isAdmin, async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     try {
         const lists = await ShoppingList.find({});
         res.json(lists);
@@ -146,45 +152,29 @@ router.post('/getAllLists', authenticate, isAdmin, async (req, res) => {
     }
 });
 
-// GET command to get a specific list
-router.get('/getList/:listId', async (req, res) => {
+router.get('/getList/:listId', authenticate, async (req, res) => {
     const listId = req.params.listId;
 
-    if (!validateObjectId(listId)) return handleInvalidId(res);
+    if (validateObjectId(listId) === false) return handleInvalidId(res);
 
     try {
         const list = await ShoppingList.findById(listId);
-        if (!list) return handleNotFound(res, null);
+        if (!list) return handleNotFound(res);
 
-        // Check if the list is not public
+        // If the list is not public, check user authorization
         if (!list.isPublic) {
-            const authHeader = req.headers['authorization'];
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({ message: 'Unauthorized: No token provided' });
+            if (!req.user) {
+                // User is not authenticated
+                return res.status(401).json({ message: 'Unauthorized: Access denied' });
             }
 
-            const token = authHeader.substring(7); // Extract the token
-            if (!token) {
-                return res.status(401).json({ message: 'Unauthorized: No token provided' });
-            }
-
-            try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                req.user = {
-                    id: decoded.userId,
-                    role: decoded.role
-                };
-
-                // Check if the user is authorized to view the list
-                if (list.ownerId !== req.user.id && !list.sharedTo.includes(req.user.id) && req.user.role !== 'admin') {
-                    return handleAccessDenied(res);
-                }
-            } catch (error) {
-                return res.status(401).json({ message: 'Unauthorized: Invalid token', error: error.message });
+            // Check if the user is authorized to view the list
+            if (list.ownerId !== req.user.id && !list.sharedTo.includes(req.user.id) && req.user.role !== 'admin') {
+                return handleAccessDenied(res);
             }
         }
 
-        // Continue with the rest of the route logic
+        // User is authorized or list is public
         res.json(list);
     } catch (error) {
         handleError(res, error);
@@ -255,7 +245,7 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
                 
                         // Validate new item
                         if (typeof newItem.name !== 'string' || typeof newItem.quantity !== 'number' || typeof newItem.checked !== 'boolean') {
-                            errors.push({ message: "New items must include name, quantity, and checked properties." });
+                            errors.push({ message: "New items must have proper name, quantity, and checked properties. Check formats carefully." });
                         } else {
                             list.items.push(newItem); // Add the new item to the list
                         }
@@ -282,6 +272,9 @@ router.put('/updateList/:listId', authenticate, validateList, async (req, res) =
 
 // DELETE command to delete a list
 router.delete('/deleteList/:listId', authenticate, async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized: Access denied' });
+    }
     const id = req.params.listId;
 
     if (!validateObjectId(id)) return handleInvalidId(res);
@@ -313,6 +306,9 @@ router.delete('/deleteList/:listId', authenticate, async (req, res) => {
 
 // POST command to create a new list
 router.post('/createList', authenticate, (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     validateList(req, res, next, createListSchemaValidation);
 }, async (req, res) => {
     try {
@@ -329,7 +325,7 @@ router.post('/createList', authenticate, (req, res, next) => {
                 if (!userId) {
                     errors.push({ message: `User ${username} not found` });
                 } else if (userId === ownerId) {
-                    errors.push({ message: 'SharedTo list cannot include the owner' });
+                    errors.push({ message: 'The list of people you are sharing to cannot include the owner' });
                 } else {
                     sharedToUserIds.push(userId);
                 }
@@ -352,7 +348,7 @@ router.post('/createList', authenticate, (req, res, next) => {
         // Further validation for each item
         req.body.items.forEach(item => {
             if (typeof item.name !== 'string' || typeof item.quantity !== 'number' || typeof item.checked !== 'boolean') {
-                errors.push({ message: "Each item must include name, quantity, and checked properties." });
+                errors.push({ message: "Please check if you entered the name, quantity, and checked properties." });
             }
         });
     }
@@ -390,6 +386,9 @@ router.post('/getAllPublicLists', async (req, res) => {
 
 // GET command to get user's lists
 router.get('/getMyLists', authenticate, async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     try {
         const userId = req.user.id; // Assuming authenticate middleware sets req.user
 
@@ -409,6 +408,9 @@ router.get('/getMyLists', authenticate, async (req, res) => {
 
 // POST command to get usernames for given user IDs
 router.post('/getUsernames', async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     try {
         const inputUserIds = req.body.userIds;
         if (!Array.isArray(inputUserIds)) {
@@ -433,12 +435,18 @@ router.post('/getUsernames', async (req, res) => {
         res.json(usernameMap);
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        if (error.message === 'Invalid user IDs') {
+            return res.status(400).json({ message: 'Invalid input: No valid user IDs provided' });
+        }
+        res.status(500).json({ message: 'Internal server error: '+error.message });
     }
 });
 
 // POST command to refresh token
 router.post('/refreshToken', authenticate, async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized Access: No user token provided' });
+    }
     try {
         const newToken = jwt.sign(
             { userId: req.user.id, role: req.user.role },
@@ -446,7 +454,10 @@ router.post('/refreshToken', authenticate, async (req, res) => {
             { expiresIn: '1h' }
         );
 
-        res.json({ newToken });
+    const expirationDuration = 60 * 60; // 60 minutes in seconds
+    const expirationTimestamp = Math.floor(Date.now() / 1000) + expirationDuration;
+
+        res.json({message: "Successfully renewed token", userToken: newToken, expiresAt: expirationTimestamp });
     } catch (error) {
         handleError(res, error);
     }

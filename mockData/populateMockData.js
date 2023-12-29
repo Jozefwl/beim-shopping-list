@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const User = require('../models/Users'); // Import your User model
@@ -5,6 +7,7 @@ const ShoppingList = require('../models/ShoppingList'); // Import your ShoppingL
 const readline = require('readline');
 const { mongoURI } = require('../config'); // Use require for importing
 const { mockUsers, mockShoppingLists } = require('./mockData'); // Use destructuring for importing
+
 
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
 const connectedDatabase = mongoose.connection.db;
