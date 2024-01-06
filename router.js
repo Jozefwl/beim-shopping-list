@@ -334,11 +334,12 @@ router.post('/createList', authenticate, (req, res, next) => {
 
        // Validate and process list items
        if (req.body.items && Array.isArray(req.body.items)) {
-        req.body.items = req.body.items.map(item => {
+        req.body.items = req.body.items.map((item) => {
             // Set default category if not provided
             if (!item.category) {
                 item.category = 'Other';
             }
+            // Set default quantity if not provided or invalid
             if(item.quantity === 0 || item.quantity < 0){
                 item.quantity = 1
             }
@@ -346,9 +347,15 @@ router.post('/createList', authenticate, (req, res, next) => {
         });
 
         // Further validation for each item
-        req.body.items.forEach(item => {
-            if (typeof item.name !== 'string' || typeof item.quantity !== 'number' || typeof item.checked !== 'boolean') {
-                errors.push({ message: "Please check if you entered the name, quantity, and checked properties." });
+        req.body.items.forEach((item, index) => {
+            if (typeof item.name !== 'string') {
+                errors.push({ message: `Item ${index + 1}: Please check the name.` });
+            }
+            if (typeof item.quantity !== 'number') {
+                errors.push({ message: `Item ${index + 1}: Please check the quantity.` });
+            }
+            if (typeof item.checked !== 'boolean') {
+                errors.push({ message: `Item ${index + 1}: Please check the checked property.` });
             }
         });
     }
