@@ -1,3 +1,10 @@
+## WARNING: Important Security Notice
+
+This repository is no longer actively maintained. Dependencies may contain security vulnerabilities that could compromise the security of applications built using this code.
+
+**I strongly recommend against using this repository in production environments.**
+
+--------------------------
 # Beim Shopping List
 
 BackEnd-IMplementation shopping list
